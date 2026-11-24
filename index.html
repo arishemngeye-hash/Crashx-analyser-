@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>CrashX Analyzer</title>
+<style>
+:root{--bg:#0b1220;--panel:#131e30;--line:#26354c;--text:#edf3ff;--muted:#9bacbf;--accent:#48d6a5;--red:#ff6c7c;--gold:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#0b1220,#101a2c 65%,#0b1220);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:900px;margin:auto;padding:18px 14px 40px}header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.5px}.logo span{color:var(--accent)}.tag{font-size:11px;border:1px solid #35536b;border-radius:99px;padding:6px 9px;color:#a8c9df}
+.notice{background:#2b2430;border:1px solid #6c4754;color:#ffe5e9;border-radius:12px;padding:12px;font-size:13px;line-height:1.45;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card,.panel{background:rgba(19,30,48,.96);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.stat{font-size:24px;font-weight:800;margin-top:6px}.label{font-size:12px;color:var(--muted)}h2{font-size:17px;margin:0 0 12px}
+input,button,select{font:inherit}input{background:#0b1423;border:1px solid #30415b;color:var(--text);border-radius:10px;padding:11px;width:100%;min-width:0}
+button,.linkbtn{border:0;border-radius:10px;padding:11px 13px;font-weight:700;background:var(--accent);color:#071810;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.secondary{background:#24344b;color:var(--text);border:1px solid #3a4c66}.danger{background:#4a2634;color:#ffdfe5;border:1px solid #754252}
+.entry{display:grid;grid-template-columns:1fr auto;gap:8px}.entry button{min-width:90px}
+.small{font-size:12px;color:var(--muted);line-height:1.5}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:110px;padding:8px 0}.bar{flex:1;min-width:3px;border-radius:4px 4px 0 0;background:var(--accent);opacity:.85}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:600}
+.listwrap{max-height:260px;overflow:auto}.pill{display:inline-block;padding:3px 7px;border-radius:7px;background:#26364b;font-size:12px}
+footer{text-align:center;color:var(--muted);font-size:12px;margin-top:20px}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}.stat{font-size:22px}.card{padding:12px}.logo{font-size:20px}}
+</style>
+</head>
+<body><main>
+<header><div class="logo">CrashX <span>Analyzer</span></div><div class="tag">VERSION BÊTA</div></header>
+<div class="notice"><b>Important :</b> cet outil est un analyseur statistique, pas un prédicteur. Il ne se connecte pas à ton compte 1xBet et ne connaît pas le prochain multiplicateur. Ne saisis jamais ton mot de passe, code SMS ou données de paiement ici.</div>
+<div class="grid">
+<div class="card"><div class="label">Manches enregistrées</div><div class="stat" id="count">0</div></div>
+<div class="card"><div class="label">Moyenne</div><div class="stat" id="avg">—</div></div>
+<div class="card"><div class="label">Médiane</div><div class="stat" id="median">—</div></div>
+<div class="card"><div class="label">Plus haut</div><div class="stat" id="high">—</div></div>
+</div>
+<section class="panel">
+<h2>Ajouter un résultat</h2>
+<div class="entry"><input id="mult" type="number" min="1" step="0.01" placeholder="Ex. 1.82"><button id="add">Ajouter</button></div>
+<div class="small" style="margin-top:8px">Entre le multiplicateur affiché après une manche. Utilise le point pour les décimales (ex. 2.45).</div>
+<div class="actions"><button class="secondary" id="open">Ouvrir 1xBet</button><button class="secondary" id="export">Exporter CSV</button><button class="secondary" id="importBtn">Importer CSV</button><input id="file" type="file" accept=".csv,text/csv" hidden></div>
+</section>
+<section class="panel">
+<h2>Distribution des résultats</h2><div class="bars" id="bars"></div><div class="small">Chaque barre représente une manche récente. La hauteur reflète le multiplicateur (échelle plafonnée à 10x).</div>
+</section>
+<section class="panel">
+<h2>Fréquences observées</h2>
+<table><thead><tr><th>Seuil</th><th>Résultats au-dessus</th><th>Fréquence</th></tr></thead><tbody id="freq"></tbody></table>
+<div class="small" style="margin-top:8px">Ces fréquences décrivent uniquement tes données enregistrées. Elles ne prédisent pas la manche suivante.</div>
+</section>
+<section class="panel">
+<h2>Historique</h2><div class="listwrap"><table><thead><tr><th>#</th><th>Multiplicateur</th><th></th></tr></thead><tbody id="history"></tbody></table></div>
+<div class="actions"><button class="secondary" id="undo">Annuler dernière</button><button class="danger" id="clear">Effacer l'historique</button></div>
+</section>
+<footer>CrashX Analyzer · Les données restent dans ce navigateur (stockage local).<br>Pas de connexion officielle 1xBet, pas de garantie de gain.</footer>
+</main>
+<script>
+const KEY="crashx_analyzer_results_v1";let values=[];
+try{values=JSON.parse(localStorage.getItem(KEY)||"[]");if(!Array.isArray(values))values=[];}catch(e){values=[]}
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toFixed(2)+"x";
+function save(){localStorage.setItem(KEY,JSON.stringify(values));render()}
+function render(){
+ const n=values.length; $("count").textContent=n;
+ if(!n){$("avg").textContent=$("median").textContent=$("high").textContent="—";$("freq").innerHTML="";$("history").innerHTML="";$("bars").innerHTML="";return}
+ const sorted=[...values].sort((a,b)=>a-b),sum=values.reduce((a,b)=>a+b,0);
+ $("avg").textContent=fmt(sum/n);$("median").textContent=fmt(n%2?sorted[(n-1)/2]:(sorted[n/2-1]+sorted[n/2])/2);$("high").textContent=fmt(Math.max(...values));
+ const recent=values.slice(-45);$("bars").innerHTML=recent.map(v=>`<div class="bar" title="${fmt(v)}" style="height:${Math.max(4,Math.min(100,v*10))}%"></div>`).join("");
+ const thresholds=[1.2,1.5,2,3,5,10];
+ $("freq").innerHTML=thresholds.map(t=>{let c=values.filter(v=>v>=t).length;return `<tr><td>${fmt(t)}</td><td>${c} / ${n}</td><td>${(c/n*100).toFixed(1)}%</td></tr>`}).join("");
+ $("history").innerHTML=values.slice().reverse().map((v,i)=>`<tr><td>${n-i}</td><td><span class="pill">${fmt(v)}</span></td><td><button class="secondary" data-del="${n-i-1}" style="padding:5px 9px">×</button></td></tr>`).join("");
+}
+$("add").onclick=()=>{let v=Number($("mult").value);if(!Number.isFinite(v)||v<1){alert("Entre un multiplicateur valide supérieur ou égal à 1.");return}values.push(Math.round(v*100)/100);$("mult").value="";save()};
+$("mult").addEventListener("keydown",e=>{if(e.key==="Enter")$("add").click()});
+$("history").onclick=e=>{let b=e.target.closest("[data-del]");if(b){values.splice(Number(b.dataset.del),1);save()}};
+$("undo").onclick=()=>{values.pop();save()};
+$("clear").onclick=()=>{if(confirm("Effacer tous les résultats enregistrés dans ce navigateur ?")){values=[];save()}};
+$("open").onclick=()=>window.open("https://1xbet.com/","_blank","noopener");
+$("export").onclick=()=>{let csv="round,multiplier\n"+values.map((v,i)=>(i+1)+","+v).join("\n");let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="crashx-results.csv";a.click();URL.revokeObjectURL(a.href)};
+$("importBtn").onclick=()=>$("file").click();
+$("file").onchange=async e=>{let f=e.target.files[0];if(!f)return;let t=await f.text();let nums=t.split(/\r?\n/).slice(1).map(line=>Number(line.split(",").pop().trim())).filter(v=>Number.isFinite(v)&&v>=1);if(!nums.length){alert("Aucun multiplicateur valide trouvé.");return}values=values.concat(nums);save();alert(nums.length+" résultats importés.")};
+render();
+</script></body></html>
